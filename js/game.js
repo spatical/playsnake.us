@@ -12,12 +12,13 @@ window.addEventListener('resize', resizeCanvas);
 
 // Generate random gradient colors for snake
 const gradientColors = ['#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F3'];
-const gradientIndex = Math.floor(Math.random() * gradientColors.length);
+let gradientIndex = Math.floor(Math.random() * gradientColors.length);
 let snakeGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
 snakeGradient.addColorStop(0, gradientColors[gradientIndex]);
 snakeGradient.addColorStop(1, gradientColors[(gradientIndex + 1) % gradientColors.length]);
 
-document.body.style.backgroundColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
+let backgroundColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
+document.body.style.backgroundColor = backgroundColor;
 
 // Snake and game settings
 const snakeSize = 20;
@@ -31,8 +32,8 @@ let snake = [
 let direction = 'right';
 let food = generateRandomPosition(snakeSize);
 let score = 0;
-let topScore = 0;
-let gamesPlayed = 0;
+let topScore = parseInt(localStorage.getItem('snakeTopScore')) || 0;
+let gamesPlayed = parseInt(localStorage.getItem('snakeGamesPlayed')) || 0;
 
 // Implementing different bonus items
 const bonuses = [
@@ -40,7 +41,9 @@ const bonuses = [
     { type: 'slow', duration: 5000, emoji: '🐌' },
     { type: 'shrink', duration: 25000, emoji: '🦅' },
     { type: 'grow', duration: 25000, emoji: '🐁' },
-    { type: 'invader', duration: 5000, emoji: '👾' }
+    { type: 'invader', duration: 5000, emoji: '👾' },
+    { type: 'regenWalls', duration: 0, emoji: '🧱' },
+    { type: 'regenColors', duration: 0, emoji: '🎨' }
 ];
 
 let activeBonus = null;
@@ -58,8 +61,10 @@ function generateRandomBonus() {
 
 // Function to draw the bonus item
 function drawBonus() {
-    ctx.font = '20px Arial';
-    ctx.fillText(bonus.emoji, bonus.x, bonus.y + 20);
+    if (bonus) {
+        ctx.font = '20px Arial';
+        ctx.fillText(bonus.emoji, bonus.x, bonus.y + 20);
+    }
 }
 
 // Space invader settings
@@ -114,18 +119,30 @@ function applyBonus() {
         case 'invader':
             generateInvaders();
             break;
+        case 'regenWalls':
+            generateWalls();
+            break;
+        case 'regenColors':
+            regenerateColors();
+            break;
     }
 
     activeBonus = bonus;
-    clearTimeout(bonusTimeout);
-    bonusTimeout = setTimeout(clearBonus, bonuses.find(b => b.type === bonus.type).duration);
+    if (bonus.duration > 0) {
+        clearTimeout(bonusTimeout);
+        bonusTimeout = setTimeout(clearBonus, bonus.duration);
+    } else {
+        clearBonus();
+    }
 }
 
 // Function to clear the bonus effect
 function clearBonus() {
+    if (activeBonus && (activeBonus.type === 'speed' || activeBonus.type === 'slow')) {
+        clearInterval(gameLoopInterval);
+        gameLoopInterval = setInterval(gameLoop, 100);
+    }
     activeBonus = null;
-    clearInterval(gameLoopInterval);
-    gameLoopInterval = setInterval(gameLoop, 100);
 }
 
 // Function to generate random position
@@ -138,12 +155,11 @@ function generateRandomPosition(size) {
 
 // Generate walls
 let walls = [];
-const numWalls = Math.floor(Math.random() * 6) + 3;
-for (let i = 0; i < numWalls; i++) {
-    const wallSegments = Math.floor(Math.random() * 8) + 3;
-    const startPosition = generateRandomPosition(snakeSize);
-    for (let j = 0; j < wallSegments; j++) {
-        walls.push({ x: startPosition.x + j * snakeSize, y: startPosition.y });
+function generateWalls() {
+    walls = [];
+    const numWalls = Math.floor(Math.random() * 6) + 3;
+    for (let i = 0; i < numWalls; i++) {
+        generateRandomWall();
     }
 }
 
@@ -157,7 +173,7 @@ function gameLoop() {
         drawInvaders();
         if (checkCollisions(snake[0], invaders, snakeSize)) {
             alert('Game Over. You were hit by an invader!');
-            resetGame();
+            endGame();
         }
     }
 }
@@ -218,11 +234,20 @@ function update() {
 
     // Check for wall collision
     if (checkCollisions(head, walls, snakeSize) || isSelfCollision(snake, snakeSize)) {
-        gamesPlayed++;
-        if (score > topScore) topScore = score;
-        alert(`Game Over. Current Score: ${score}, Top Score: ${topScore}, Games Played: ${gamesPlayed}`);
-        resetGame();
+        endGame();
     }
+}
+
+// Function to handle game over
+function endGame() {
+    gamesPlayed++;
+    localStorage.setItem('snakeGamesPlayed', gamesPlayed);
+    if (score > topScore) {
+        topScore = score;
+        localStorage.setItem('snakeTopScore', topScore);
+    }
+    alert(`Game Over. Current Score: ${score}, Top Score: ${topScore}, Games Played: ${gamesPlayed}`);
+    resetGame();
 }
 
 // Draw everything
@@ -267,8 +292,8 @@ function draw() {
     });
 
     ctx.fillStyle = 'black';
-    ctx.font = '20px Comic Sans MS'; // Example of a fun game font
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'; // 80% opaque black color
+    ctx.font = '20px Comic Sans MS';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     ctx.fillText(`Score: ${score} | Top Score: ${topScore} | Games Played: ${gamesPlayed}`, 10, 20);
 }
 
@@ -289,13 +314,8 @@ window.addEventListener('keydown', e => {
 function generateRandomWall() {
     const wallSegments = Math.floor(Math.random() * 5) + 3; // Random length between 3 and 7
     const isHorizontal = Math.random() > 0.5; // Random orientation
-    const startPosition = {
-        x: Math.floor(Math.random() * (canvas.width / snakeSize)) * snakeSize,
-        y: Math.floor(Math.random() * (canvas.height / snakeSize)) * snakeSize
-    };
-
-    console.log(`Generating ${isHorizontal ? 'horizontal' : 'vertical'} wall of length ${wallSegments} at (${startPosition.x}, ${startPosition.y})`);
-
+    const startPosition = generateRandomPosition(snakeSize);
+    
     for (let j = 0; j < wallSegments; j++) {
         if (isHorizontal) {
             walls.push({ x: startPosition.x + j * snakeSize, y: startPosition.y });
@@ -303,6 +323,16 @@ function generateRandomWall() {
             walls.push({ x: startPosition.x, y: startPosition.y + j * snakeSize });
         }
     }
+}
+
+// Function to regenerate colors
+function regenerateColors() {
+    gradientIndex = Math.floor(Math.random() * gradientColors.length);
+    snakeGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    snakeGradient.addColorStop(0, gradientColors[gradientIndex]);
+    snakeGradient.addColorStop(1, gradientColors[(gradientIndex + 1) % gradientColors.length]);
+    backgroundColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
+    document.body.style.backgroundColor = backgroundColor;
 }
 
 // Function to reset game
@@ -316,23 +346,10 @@ function resetGame() {
     ];
     direction = 'right';
     score = 0;
-    walls = [];
-    const numWalls = Math.floor(Math.random() * 6) + 3;
-    for (let i = 0; i < numWalls; i++) {
-        generateRandomWall();
-    }
-    console.log('Walls:', walls);
-
-    // Regenerate random gradient colors for snake
-    const gradientIndex = Math.floor(Math.random() * gradientColors.length);
-    snakeGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    snakeGradient.addColorStop(0, gradientColors[gradientIndex]);
-    snakeGradient.addColorStop(1, gradientColors[(gradientIndex + 1) % gradientColors.length]);
-
-    // Generate new random bonus
+    generateWalls();
+    regenerateColors();
+    food = generateRandomPosition(snakeSize);
     bonus = generateRandomBonus();
-
-    // Clear invaders
     invaders = [];
 }
 
@@ -392,5 +409,6 @@ document.body.addEventListener('touchmove', (e) => {
     e.preventDefault();
 }, { passive: false });
 
-
+// Initialize the game
+generateWalls();
 let gameLoopInterval = setInterval(gameLoop, 100);
