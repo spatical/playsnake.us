@@ -2,8 +2,13 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Set canvas size to fill the screen
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
 // Generate random gradient colors for snake
 const gradientColors = ['#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F3'];
@@ -131,18 +136,6 @@ function generateRandomPosition(size) {
     };
 }
 
-// Function to calculate contrast between two colors
-function calculateContrast(color1, color2) {
-    const luminance = (color) => {
-        const a = [0.299, 0.587, 0.114];
-        const rgb = color.match(/\w\w/g).map((x) => parseInt(x, 16));
-        return rgb.reduce((sum, value, i) => sum + value * a[i], 0) / 255;
-    };
-    const lum1 = luminance(color1);
-    const lum2 = luminance(color2);
-    return (Math.max(lum1, lum2) + 0.05) / (Math.min(lum1, lum2) + 0.05);
-}
-
 // Generate walls
 let walls = [];
 const numWalls = Math.floor(Math.random() * 6) + 3;
@@ -165,7 +158,6 @@ function gameLoop() {
         if (checkCollisions(snake[0], invaders, snakeSize)) {
             alert('Game Over. You were hit by an invader!');
             resetGame();
-            return;
         }
     }
 }
@@ -229,9 +221,7 @@ function update() {
         gamesPlayed++;
         if (score > topScore) topScore = score;
         alert(`Game Over. Current Score: ${score}, Top Score: ${topScore}, Games Played: ${gamesPlayed}`);
-        
         resetGame();
-        return;
     }
 }
 
@@ -277,9 +267,9 @@ function draw() {
     });
 
     ctx.fillStyle = 'black';
-    ctx.fillText(`Score: ${score}`, 10, 20);
-    ctx.fillText(`Top Score: ${topScore}`, 10, 40);
-    ctx.fillText(`Games Played: ${gamesPlayed}`, 10, 60);
+    ctx.font = '20px Comic Sans MS'; // Example of a fun game font
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'; // 80% opaque black color
+    ctx.fillText(`Score: ${score} | Top Score: ${topScore} | Games Played: ${gamesPlayed}`, 10, 20);
 }
 
 // Handle keyboard input
@@ -295,7 +285,6 @@ window.addEventListener('keydown', e => {
         e.preventDefault();
     }
 });
-
 
 function generateRandomWall() {
     const wallSegments = Math.floor(Math.random() * 5) + 3; // Random length between 3 and 7
@@ -315,7 +304,6 @@ function generateRandomWall() {
         }
     }
 }
-
 
 // Function to reset game
 function resetGame() {
@@ -347,5 +335,62 @@ function resetGame() {
     // Clear invaders
     invaders = [];
 }
+
+// Mobile touch controls
+const mobileKeypad = document.getElementById('mobileKeypad');
+const upBtn = document.getElementById('upBtn');
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+const downBtn = document.getElementById('downBtn');
+
+function handleDirectionChange(newDirection) {
+    switch (newDirection) {
+        case 'right': if (direction !== 'left') direction = 'right'; break;
+        case 'left': if (direction !== 'right') direction = 'left'; break;
+        case 'up': if (direction !== 'down') direction = 'up'; break;
+        case 'down': if (direction !== 'up') direction = 'down'; break;
+    }
+}
+
+upBtn.addEventListener('touchstart', () => handleDirectionChange('up'));
+leftBtn.addEventListener('touchstart', () => handleDirectionChange('left'));
+rightBtn.addEventListener('touchstart', () => handleDirectionChange('right'));
+downBtn.addEventListener('touchstart', () => handleDirectionChange('down'));
+
+// Swipe gestures
+let touchStartX = 0;
+let touchStartY = 0;
+let touchEndX = 0;
+let touchEndY = 0;
+
+canvas.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+}, false);
+
+canvas.addEventListener('touchend', (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    touchEndY = e.changedTouches[0].screenY;
+    handleSwipe();
+}, false);
+
+function handleSwipe() {
+    const diffX = touchEndX - touchStartX;
+    const diffY = touchEndY - touchStartY;
+    
+    if (Math.abs(diffX) > Math.abs(diffY)) {
+        // Horizontal swipe
+        handleDirectionChange(diffX > 0 ? 'right' : 'left');
+    } else {
+        // Vertical swipe
+        handleDirectionChange(diffY > 0 ? 'down' : 'up');
+    }
+}
+
+// Prevent default touch behavior to avoid scrolling
+document.body.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+}, { passive: false });
+
 
 let gameLoopInterval = setInterval(gameLoop, 100);

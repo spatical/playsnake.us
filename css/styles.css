@@ -3,11 +3,49 @@ body, html {
     padding: 0;
     width: 100%;
     height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    overflow: hidden;
 }
 
 #gameCanvas {
-    border: 1px solid black;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    margin: auto;
+}
+
+#mobileKeypad {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 200px;
+    z-index: 1000;
+}
+
+#mobileKeypad button {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border: 2px solid #333;
+    border-radius: 50%;
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+#upBtn { top: 0; left: 50%; transform: translateX(-50%); }
+#leftBtn { top: 50%; left: 0; transform: translateY(-50%); }
+#rightBtn { top: 50%; right: 0; transform: translateY(-50%); }
+#downBtn { bottom: 0; left: 50%; transform: translateX(-50%); }
+
+@media (max-width: 768px), (pointer: coarse) {
+    #mobileKeypad {
+        display: block;
+    }
 }
